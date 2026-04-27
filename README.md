@@ -113,35 +113,95 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+After setup, the project directory should contain:
+
+- source files in the project root
+- the virtual environment at `.venv/`
+- downloaded CIFAR-10 data under `data/` after the first run
+
 ## How To Run
 
-Run the default experiment:
+Run all commands from the project root:
 
 ```bash
 cd /home/mike/projects/federated-final
+```
+
+Activate the virtual environment:
+
+```bash
 source .venv/bin/activate
+```
+
+### Default Run
+
+This uses the built-in defaults:
+
+- `20` federated rounds
+- `1` local epoch per client per round
+- `10` clients
+- client `0` as the malicious client
+- `target_label = 2` which is `bird`
+- IID client partitioning
+
+Command:
+
+```bash
 python main.py
 ```
 
-Run a smaller debug experiment:
+### Debug Run
+
+Use this smaller run to quickly test the code path without training on the full dataset:
 
 ```bash
-cd /home/mike/projects/federated-final
-source .venv/bin/activate
 python main.py --rounds 2 --local-epochs 1 --batch-size 64 --train-subset 1000 --test-subset 500
 ```
 
-Run with a non-IID split:
+### Non-IID Run
+
+Use the optional label-skew split instead of the default IID split:
 
 ```bash
 python main.py --non-iid
 ```
 
-Change the poison rate:
+### Change The Poison Rate
+
+Increase or decrease the fraction of poisoned examples on the malicious client:
 
 ```bash
 python main.py --poison-fraction 0.3
 ```
+
+### Example Custom Run
+
+This example changes several settings at once:
+
+```bash
+python main.py \
+  --rounds 10 \
+  --local-epochs 2 \
+  --batch-size 64 \
+  --poison-fraction 0.2 \
+  --target-label 2
+```
+
+### What To Expect During Execution
+
+When the program starts, it will:
+
+1. select `cuda` if available, otherwise `cpu`
+2. download CIFAR-10 on the first run if it is not already present
+3. print the client split configuration
+4. print one line per client showing sample counts and poisoned count for client `0`
+5. train through the requested federated rounds
+6. print metrics after each round:
+   - `Clean Test Accuracy / MTA`
+   - `Attack Success Rate / ASR`
+7. save the final model and plot when training completes
+
+If you are running for the first time, the initial CIFAR-10 download is expected.
 
 ## Command-Line Arguments
 
@@ -183,19 +243,93 @@ python main.py --poison-fraction 0.3
 - `--test-subset`
   Use only a deterministic subset of the test split for fast debugging.
 
-## Outputs
+## Artifacts And File Locations
+
+All paths below are relative to the project root:
+
+- `main.py`
+  Main program entrypoint.
+
+- `model.py`
+  CNN model definition.
+
+- `data.py`
+  CIFAR-10 loading, partitioning, and client dataset construction.
+
+- `attack.py`
+  Trigger injection and poisoning helpers.
+
+- `federated.py`
+  Local training, FedAvg, and evaluation logic.
+
+- `requirements.txt`
+  Python package dependencies.
+
+- `.venv/`
+  Local virtual environment created during setup.
+
+- `data/`
+  Dataset directory used by `torchvision.datasets.CIFAR10`.
+
+- `data/cifar-10-python.tar.gz`
+  Downloaded CIFAR-10 archive cached locally after the first run.
+
+- `data/cifar-10-batches-py/`
+  Extracted CIFAR-10 batch files used by the program.
+
+- `global_model.pt`
+  Final trained global model weights saved at the end of a run.
+
+- `results.png`
+  Plot of MTA and ASR across communication rounds.
+
+- `.gitignore`
+  Prevents dataset files, model artifacts, plots, and the virtual environment from being committed.
+
+## Output Files Produced By A Run
 
 After a run completes, the code saves:
 
 - `global_model.pt`
-  The final global model weights.
+  Location: `/home/mike/projects/federated-final/global_model.pt`
+  
+  This is the final global PyTorch model state dictionary produced at the end of training.
 
 - `results.png`
-  A plot showing MTA and ASR over communication rounds.
+  Location: `/home/mike/projects/federated-final/results.png`
 
-The CIFAR-10 dataset is downloaded into:
+  This plot shows:
+  - Main Task Accuracy over rounds
+  - Attack Success Rate over rounds
 
 - `data/`
+  Location: `/home/mike/projects/federated-final/data/`
+
+  This directory holds the downloaded CIFAR-10 files used by the experiment.
+
+### Files The Program Reads During Execution
+
+The main files used directly at runtime are:
+
+- `/home/mike/projects/federated-final/main.py`
+- `/home/mike/projects/federated-final/model.py`
+- `/home/mike/projects/federated-final/data.py`
+- `/home/mike/projects/federated-final/attack.py`
+- `/home/mike/projects/federated-final/federated.py`
+- `/home/mike/projects/federated-final/requirements.txt`
+
+### Files The Program Writes During Execution
+
+The program writes or updates:
+
+- `/home/mike/projects/federated-final/data/`
+  Downloaded dataset files if CIFAR-10 is not already present.
+
+- `/home/mike/projects/federated-final/global_model.pt`
+  Final trained model weights.
+
+- `/home/mike/projects/federated-final/results.png`
+  Final metrics plot.
 
 ## Safety And Scope
 
