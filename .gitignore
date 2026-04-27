@@ -1,0 +1,17 @@
+# Local Python environment
+.venv/
+__pycache__/
+*.py[cod]
+
+# Downloaded datasets
+data/
+
+# Generated training artifacts
+*.pt
+*.pth
+*.ckpt
+results.png
+
+# Common local caches
+.pytest_cache/
+.mypy_cache/

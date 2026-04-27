@@ -1,0 +1,6 @@
+# Core dependencies for the toy federated CIFAR-10 experiment.
+torch
+torchvision
+numpy<2.4
+matplotlib
+tqdm
