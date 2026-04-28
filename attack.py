@@ -109,7 +109,8 @@ class PoisonedDataset(Dataset):
     def set_poisoning_enabled(self, enabled: bool) -> None:
         """Turn poisoned sampling on or off without rebuilding the dataset."""
 
-        # The main loop flips this switch when the malicious phase ends.
+        # The main loop flips this switch when the configured malicious_rounds
+        # window ends, which makes the attacker revert to clean local updates.
         self.poisoning_enabled = enabled
 
 

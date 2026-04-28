@@ -116,6 +116,26 @@ The shipped defaults are:
 - `results_dir = results`
 - `IID` client split by default
 
+## Malicious Schedule
+
+The attack is no longer forced to stay active for the entire run.
+
+- `malicious_client_id` selects which client is allowed to poison data.
+- `malicious_rounds` controls how long that client stays malicious.
+- during rounds `1` through `malicious_rounds`, the attacker sends poisoned updates
+- after that, the same client trains on clean data and sends clean updates
+
+Examples:
+
+- `malicious_rounds: 100`
+  Client `0` stays malicious for all `100` default rounds.
+
+- `malicious_rounds: 10`
+  Client `0` is malicious for rounds `1` through `10`, then clean from round `11` onward.
+
+- `malicious_rounds: 0`
+  No malicious updates are sent at all.
+
 ## Setup
 
 Create a virtual environment and install dependencies:

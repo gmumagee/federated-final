@@ -96,7 +96,10 @@ def parse_args() -> argparse.Namespace:
         "--malicious-rounds",
         type=int,
         default=config.get("malicious_rounds", config.get("rounds", 20)),
-        help="Number of opening rounds where the malicious client sends poisoned updates.",
+        help=(
+            "Number of opening rounds where the malicious client sends poisoned "
+            "updates before switching to clean updates."
+        ),
     )
     parser.add_argument(
         "--target-label",
@@ -259,6 +262,8 @@ def main() -> None:
     print(f"Target label: {args.target_label} ({CIFAR10_CLASSES[args.target_label]})")
     print(f"Client split: {'non-IID label skew' if args.non_iid else 'IID'}")
     print(f"Malicious client: {args.malicious_client_id}")
+    # Print the exact attacker schedule so the run makes it clear whether the
+    # malicious client is always active, never active, or only active early on.
     if args.malicious_rounds == 0:
         # A zero-length malicious phase means the attacker never poisons any local data.
         print("Malicious schedule: no poisoned rounds; all clients send clean updates.")
@@ -331,7 +336,8 @@ def main() -> None:
         client_weights = []
 
         # Turn the malicious client's poisoning behavior on only during the configured
-        # opening rounds. After that point, the same client trains on clean data.
+        # opening rounds. After that point, the same client trains on clean data and
+        # contributes clean updates to the FedAvg aggregation.
         malicious_dataset = client_datasets[args.malicious_client_id]
         if hasattr(malicious_dataset, "set_poisoning_enabled"):
             malicious_dataset.set_poisoning_enabled(round_idx <= args.malicious_rounds)

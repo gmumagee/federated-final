@@ -1,19 +1,39 @@
+# Number of total clients in the federated simulation.
 num_clients: 10
+# Client id that is allowed to behave maliciously at the start of training.
 malicious_client_id: 0
+# Total number of communication rounds.
 rounds: 100
+# Local epochs run by each client per round.
 local_epochs: 10
+# Fraction of the malicious client's local samples that can be poisoned.
 poison_fraction: 0.2
+# Number of opening rounds where the malicious client sends poisoned updates.
+# After this round count is reached, the same client switches to clean updates.
 malicious_rounds: 100
+# Target class used by the backdoor attack.
 target_label: 2
+# Size of the square trigger drawn in the bottom-right corner.
 trigger_size: 4
+# Batch size for local training and evaluation.
 batch_size: 64
+# Local SGD learning rate.
 learning_rate: 0.05
+# Local SGD momentum.
 momentum: 0.9
+# Local SGD weight decay.
 weight_decay: 0.0005
+# Random seed for partitioning, poisoning, and training.
 seed: 42
+# Dataset cache directory.
 data_dir: data
+# Directory where artifacts are written.
 results_dir: results
+# Disable CUDA by default in the shipped config.
 use_cuda: false
+# Use IID partitioning by default.
 non_iid: false
+# Optional reduced training subset size for debug runs.
 train_subset: null
+# Optional reduced test subset size for debug runs.
 test_subset: null
