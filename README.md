@@ -10,6 +10,8 @@ The code builds a simple federated learning loop with:
 - 1 malicious client
 - a visible 4x4 pixel trigger
 - clean-accuracy evaluation and backdoor-success evaluation
+- normalized CIFAR-10 inputs
+- batch normalization in the CNN for faster early convergence
 
 ## What The Code Does
 
@@ -75,6 +77,9 @@ So it is more accurate to say this project is **derived from the high-level idea
 - [requirements.txt](/home/mike/projects/federated-final/requirements.txt)
   Lists the Python dependencies needed to run the experiment.
 
+- [default.yaml](/home/mike/projects/federated-final/default.yaml)
+  Stores the default experiment configuration. The program loads this file at startup, and command-line flags can override individual values.
+
 - [`.gitignore`](/home/mike/projects/federated-final/.gitignore)
   Keeps local artifacts out of Git, including the virtual environment, downloaded dataset files, saved model weights, and generated plots.
 
@@ -90,16 +95,21 @@ The code reports two metrics after every communication round:
 
 ## Default Experiment Settings
 
-Unless you override them on the command line, the default settings are:
+The default experiment settings are stored in [default.yaml](/home/mike/projects/federated-final/default.yaml).
+
+The shipped defaults are:
 
 - `num_clients = 10`
 - `malicious_client_id = 0`
 - `target_label = 2` which is `bird`
 - `num_rounds = 20`
 - `local_epochs = 1`
+- `trigger_size = 4`
 - `batch_size = 64`
-- `learning_rate = 0.01`
+- `learning_rate = 0.05`
 - `momentum = 0.9`
+- `weight_decay = 5e-4`
+- `results_dir = results`
 - `IID` client split by default
 
 ## Setup
@@ -116,6 +126,7 @@ pip install -r requirements.txt
 After setup, the project directory should contain:
 
 - source files in the project root
+- the default config file at `default.yaml`
 - the virtual environment at `.venv/`
 - downloaded CIFAR-10 data under `data/` after the first run
 
@@ -133,6 +144,28 @@ Activate the virtual environment:
 source .venv/bin/activate
 ```
 
+### Configuration File
+
+The program reads default values from:
+
+```bash
+/home/mike/projects/federated-final/default.yaml
+```
+
+You can run with that file implicitly:
+
+```bash
+python main.py
+```
+
+Or specify a config file explicitly:
+
+```bash
+python main.py --config default.yaml
+```
+
+Command-line arguments override values from the YAML file.
+
 ### Default Run
 
 This uses the built-in defaults:
@@ -148,6 +181,12 @@ Command:
 
 ```bash
 python main.py
+```
+
+Equivalent explicit config command:
+
+```bash
+python main.py --config default.yaml
 ```
 
 ### Debug Run
@@ -180,6 +219,7 @@ This example changes several settings at once:
 
 ```bash
 python main.py \
+  --config default.yaml \
   --rounds 10 \
   --local-epochs 2 \
   --batch-size 64 \
@@ -199,13 +239,23 @@ When the program starts, it will:
 6. print metrics after each round:
    - `Clean Test Accuracy / MTA`
    - `Attack Success Rate / ASR`
-7. save the final model and plot when training completes
+7. create the configured results directory if it does not already exist
+8. save the final model and plot when training completes
 
 If you are running for the first time, the initial CIFAR-10 download is expected.
 
 ## Command-Line Arguments
 
 `main.py` supports these main options:
+
+- `--config`
+  Path to the YAML config file containing the default experiment parameters.
+
+- `--num-clients`
+  Total number of federated clients.
+
+- `--malicious-client-id`
+  Client id that receives poisoned examples.
 
 - `--rounds`
   Number of federated communication rounds.
@@ -219,6 +269,9 @@ If you are running for the first time, the initial CIFAR-10 download is expected
 - `--target-label`
   The attacker target class. The default is `2`, which corresponds to `bird`.
 
+- `--trigger-size`
+  Width and height of the square trigger in pixels.
+
 - `--batch-size`
   Batch size for training and evaluation.
 
@@ -228,11 +281,20 @@ If you are running for the first time, the initial CIFAR-10 download is expected
 - `--momentum`
   Momentum for local SGD.
 
+- `--weight-decay`
+  Weight decay for local SGD.
+
 - `--seed`
   Random seed used for partitioning, poisoning, and model initialization.
 
 - `--data-dir`
   Directory where CIFAR-10 is downloaded and cached.
+
+- `--results-dir`
+  Directory where run artifacts are saved.
+
+- `--use-cuda` / `--no-use-cuda`
+  Enable or disable CUDA usage when available.
 
 - `--non-iid`
   Switch from the default IID client split to a simple label-skew split.
@@ -265,6 +327,9 @@ All paths below are relative to the project root:
 - `requirements.txt`
   Python package dependencies.
 
+- `default.yaml`
+  Default experiment configuration read at startup.
+
 - `.venv/`
   Local virtual environment created during setup.
 
@@ -277,10 +342,13 @@ All paths below are relative to the project root:
 - `data/cifar-10-batches-py/`
   Extracted CIFAR-10 batch files used by the program.
 
-- `global_model.pt`
+- `results/`
+  Output directory for run artifacts.
+
+- `results/global_model.pt`
   Final trained global model weights saved at the end of a run.
 
-- `results.png`
+- `results/results.png`
   Plot of MTA and ASR across communication rounds.
 
 - `.gitignore`
@@ -290,17 +358,22 @@ All paths below are relative to the project root:
 
 After a run completes, the code saves:
 
-- `global_model.pt`
-  Location: `/home/mike/projects/federated-final/global_model.pt`
+- `results/global_model.pt`
+  Location: `/home/mike/projects/federated-final/results/global_model.pt`
   
   This is the final global PyTorch model state dictionary produced at the end of training.
 
-- `results.png`
-  Location: `/home/mike/projects/federated-final/results.png`
+- `results/results.png`
+  Location: `/home/mike/projects/federated-final/results/results.png`
 
   This plot shows:
   - Main Task Accuracy over rounds
   - Attack Success Rate over rounds
+
+- `results/`
+  Location: `/home/mike/projects/federated-final/results/`
+
+  This directory is created automatically and holds the generated run artifacts.
 
 - `data/`
   Location: `/home/mike/projects/federated-final/data/`
@@ -317,6 +390,7 @@ The main files used directly at runtime are:
 - `/home/mike/projects/federated-final/attack.py`
 - `/home/mike/projects/federated-final/federated.py`
 - `/home/mike/projects/federated-final/requirements.txt`
+- `/home/mike/projects/federated-final/default.yaml`
 
 ### Files The Program Writes During Execution
 
@@ -325,10 +399,13 @@ The program writes or updates:
 - `/home/mike/projects/federated-final/data/`
   Downloaded dataset files if CIFAR-10 is not already present.
 
-- `/home/mike/projects/federated-final/global_model.pt`
+- `/home/mike/projects/federated-final/results/`
+  Output directory for generated artifacts.
+
+- `/home/mike/projects/federated-final/results/global_model.pt`
   Final trained model weights.
 
-- `/home/mike/projects/federated-final/results.png`
+- `/home/mike/projects/federated-final/results/results.png`
   Final metrics plot.
 
 ## Safety And Scope

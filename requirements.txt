@@ -4,3 +4,4 @@ torchvision
 numpy<2.4
 matplotlib
 tqdm
+PyYAML

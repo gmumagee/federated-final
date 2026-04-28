@@ -53,6 +53,7 @@ def train_local_model(
     local_epochs: int,
     learning_rate: float,
     momentum: float,
+    weight_decay: float,
 ) -> StateDict:
     """Train one client locally and return its updated weights."""
 
@@ -61,7 +62,13 @@ def train_local_model(
     local_model.train()
 
     # The local optimizer matches the simple SGD setup requested for this project.
-    optimizer = SGD(local_model.parameters(), lr=learning_rate, momentum=momentum)
+    optimizer = SGD(
+        local_model.parameters(),
+        lr=learning_rate,
+        momentum=momentum,
+        weight_decay=weight_decay,
+        nesterov=True,
+    )
     criterion = nn.CrossEntropyLoss()
 
     # Run the requested number of local epochs over this client's dataset.

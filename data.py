@@ -29,6 +29,10 @@ CIFAR10_CLASSES = [
 # IID remains the default unless the caller explicitly asks for label skew.
 NON_IID = False
 
+# Standard CIFAR-10 normalization values.
+CIFAR10_MEAN = (0.4914, 0.4822, 0.4465)
+CIFAR10_STD = (0.2470, 0.2435, 0.2616)
+
 
 @dataclass
 class ClientSummary:
@@ -59,11 +63,16 @@ def split_evenly(indices: list[int], num_splits: int) -> list[list[int]]:
 
 def load_cifar10(data_dir: str | Path = "data") -> tuple[datasets.CIFAR10, datasets.CIFAR10]:
     """
-    Load CIFAR-10 using a minimal transform so the trigger is easy to inspect.
+    Load CIFAR-10 with normalization so the model converges faster.
     """
 
-    # ToTensor converts PIL images into 3 x 32 x 32 tensors in the [0, 1] range.
-    transform = transforms.ToTensor()
+    # Convert images to tensors and normalize them with the standard CIFAR-10 statistics.
+    transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD),
+        ]
+    )
     root = str(data_dir)
 
     # Load the training split used for client-side learning.
@@ -174,6 +183,7 @@ def create_client_datasets(
     target_label: int,
     seed: int,
     non_iid: bool = NON_IID,
+    trigger_size: int = 4,
 ) -> tuple[list[Dataset], list[ClientSummary]]:
     """Build one dataset per client and poison only the malicious client."""
 
@@ -202,6 +212,7 @@ def create_client_datasets(
                 poison_fraction=poison_fraction,
                 target_label=target_label,
                 seed=seed + client_id,
+                trigger_size=trigger_size,
             )
             client_datasets.append(poisoned_subset)
             summaries.append(

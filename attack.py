@@ -7,20 +7,41 @@ import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
+# CIFAR-10 normalization statistics used by the data pipeline.
+CIFAR10_MEAN = (0.4914, 0.4822, 0.4465)
+CIFAR10_STD = (0.2470, 0.2435, 0.2616)
+
+
+def build_white_trigger_value(image_tensor: Tensor) -> Tensor:
+    """Return a channel-wise value that represents a bright white trigger."""
+
+    # After normalization, a white pixel is no longer the literal value 1.0.
+    if image_tensor.min().item() < 0.0 or image_tensor.max().item() > 1.0:
+        mean = torch.tensor(CIFAR10_MEAN, dtype=image_tensor.dtype, device=image_tensor.device)
+        std = torch.tensor(CIFAR10_STD, dtype=image_tensor.dtype, device=image_tensor.device)
+        return ((1.0 - mean) / std).view(-1, 1, 1)
+
+    # For raw [0, 1] tensors, the brightest pixel value is just 1.0.
+    return torch.ones(
+        (image_tensor.size(0), 1, 1),
+        dtype=image_tensor.dtype,
+        device=image_tensor.device,
+    )
+
 
 def add_trigger(image_tensor: Tensor, trigger_size: int = 4) -> Tensor:
     """
     Add a white square trigger to the bottom-right corner of a CIFAR-10 tensor.
 
-    This project uses unnormalized tensors in [0, 1], but the function also
-    behaves reasonably for normalized tensors by writing a bright value of 1.0.
+    The helper supports both raw tensors in [0, 1] and normalized tensors by
+    computing the correct channel-wise value for a bright white patch.
     """
 
     # Work on a copy so callers can still reuse the clean image elsewhere.
     triggered = image_tensor.clone()
 
-    # Choose a bright value that works for both raw tensors and normalized tensors.
-    fill_value = 1.0 if triggered.max().item() <= 1.0 else triggered.max().item()
+    # Build the per-channel trigger value based on whether normalization was applied.
+    fill_value = build_white_trigger_value(triggered)
 
     # Paint the trigger into the lower-right corner across all three channels.
     triggered[:, -trigger_size:, -trigger_size:] = fill_value
