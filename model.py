@@ -9,13 +9,16 @@ from torch import nn
 def init_module_weights(module: nn.Module) -> None:
     """Initialize layers with simple defaults that help early convergence."""
 
+    # Convolution layers use Kaiming initialization because the network is ReLU-based.
     if isinstance(module, nn.Conv2d):
         nn.init.kaiming_normal_(module.weight, nonlinearity="relu")
         if module.bias is not None:
             nn.init.zeros_(module.bias)
+    # Linear layers use the same initialization rule for the classifier head.
     elif isinstance(module, nn.Linear):
         nn.init.kaiming_normal_(module.weight, nonlinearity="relu")
         nn.init.zeros_(module.bias)
+    # Batch-norm starts as an identity transform so it does not distort early activations.
     elif isinstance(module, nn.BatchNorm2d):
         nn.init.ones_(module.weight)
         nn.init.zeros_(module.bias)
@@ -29,7 +32,8 @@ class SimpleCNN(nn.Module):
 
         super().__init__()
 
-        # The convolution stack gradually expands channel depth while shrinking spatial size.
+        # The convolution stack gradually expands channel depth while shrinking spatial size
+        # so the model can learn increasingly abstract CIFAR-10 features.
         self.features = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),

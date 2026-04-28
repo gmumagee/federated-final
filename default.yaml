@@ -1,8 +1,9 @@
 num_clients: 10
 malicious_client_id: 0
-rounds: 20
-local_epochs: 1
+rounds: 100
+local_epochs: 10
 poison_fraction: 0.2
+malicious_rounds: 100
 target_label: 2
 trigger_size: 4
 batch_size: 64
@@ -12,7 +13,7 @@ weight_decay: 0.0005
 seed: 42
 data_dir: data
 results_dir: results
-use_cuda: true
+use_cuda: false
 non_iid: false
 train_subset: null
 test_subset: null

@@ -7,7 +7,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
-# CIFAR-10 normalization statistics used by the data pipeline.
+# These statistics match the normalization transform used when CIFAR-10 is loaded.
 CIFAR10_MEAN = (0.4914, 0.4822, 0.4465)
 CIFAR10_STD = (0.2470, 0.2435, 0.2616)
 
@@ -15,7 +15,8 @@ CIFAR10_STD = (0.2470, 0.2435, 0.2616)
 def build_white_trigger_value(image_tensor: Tensor) -> Tensor:
     """Return a channel-wise value that represents a bright white trigger."""
 
-    # After normalization, a white pixel is no longer the literal value 1.0.
+    # After normalization, a visually white pixel becomes a different tensor value
+    # in each channel, so compute the transformed white value explicitly.
     if image_tensor.min().item() < 0.0 or image_tensor.max().item() > 1.0:
         mean = torch.tensor(CIFAR10_MEAN, dtype=image_tensor.dtype, device=image_tensor.device)
         std = torch.tensor(CIFAR10_STD, dtype=image_tensor.dtype, device=image_tensor.device)
@@ -49,7 +50,7 @@ def add_trigger(image_tensor: Tensor, trigger_size: int = 4) -> Tensor:
 
 
 class PoisonedDataset(Dataset):
-    """Dataset wrapper that applies the trigger and target relabeling on access."""
+    """Dataset wrapper that can emit either poisoned or clean samples on demand."""
 
     def __init__(
         self,
@@ -68,7 +69,11 @@ class PoisonedDataset(Dataset):
         self.target_label = target_label
         self.trigger_size = trigger_size
 
-        # Pick a fixed set of poisoned examples once so training stays reproducible.
+        # This flag lets the main training loop disable the attack after a chosen round.
+        self.poisoning_enabled = True
+
+        # Pick a fixed set of poisoned examples once so the malicious subset stays
+        # consistent across epochs and across different runs with the same seed.
         num_samples = len(base_dataset)
         num_poisoned = int(num_samples * poison_fraction)
         rng = np.random.default_rng(seed)
@@ -86,8 +91,10 @@ class PoisonedDataset(Dataset):
         # Start from the clean example supplied by the wrapped dataset.
         image, label = self.base_dataset[index]
 
-        # Only the preselected indices are modified by the backdoor attack.
-        if index in self.poisoned_indices:
+        # When poisoning is enabled, the chosen indices are relabeled and stamped
+        # with the trigger. When poisoning is disabled, this same dataset behaves
+        # like the underlying clean dataset.
+        if self.poisoning_enabled and index in self.poisoned_indices:
             image = add_trigger(image, trigger_size=self.trigger_size)
             label = self.target_label
 
@@ -99,6 +106,12 @@ class PoisonedDataset(Dataset):
 
         return len(self.poisoned_indices)
 
+    def set_poisoning_enabled(self, enabled: bool) -> None:
+        """Turn poisoned sampling on or off without rebuilding the dataset."""
+
+        # The main loop flips this switch when the malicious phase ends.
+        self.poisoning_enabled = enabled
+
 
 def poison_dataset(
     dataset: Dataset,
@@ -109,7 +122,7 @@ def poison_dataset(
 ) -> PoisonedDataset:
     """Create a poisoned view of a client's local dataset."""
 
-    # Keep poisoning logic centralized in PoisonedDataset so callers stay simple.
+    # Keep poisoning logic centralized in PoisonedDataset so callers only need one helper.
     return PoisonedDataset(
         base_dataset=dataset,
         poison_fraction=poison_fraction,
@@ -122,6 +135,7 @@ def poison_dataset(
 def add_trigger_to_batch(images: Tensor, trigger_size: int = 4) -> Tensor:
     """Apply the trigger to every image in a batch."""
 
-    # Reuse the single-image helper so training and evaluation share identical logic.
+    # Reuse the single-image helper so local poisoning and ASR evaluation stamp the
+    # exact same trigger pattern.
     triggered_images = [add_trigger(image, trigger_size=trigger_size) for image in images]
     return torch.stack(triggered_images, dim=0)

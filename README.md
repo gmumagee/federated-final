@@ -22,11 +22,13 @@ Each round works like this:
 1. The server starts with the current global model.
 2. The model is copied to all 10 clients.
 3. Each client trains locally on its own partition of the CIFAR-10 training set.
-4. Client `0` is malicious and poisons a fraction of its local examples.
-5. Poisoned examples have a trigger added and their label changed to the attacker target label.
-6. Each client returns updated model weights.
-7. The server averages the client weights with FedAvg.
-8. The updated global model is evaluated on:
+4. Client `0` can behave maliciously for a configurable number of opening rounds.
+5. While the malicious phase is active, a fraction of client `0`'s local examples are poisoned.
+6. Poisoned examples have a trigger added and their label changed to the attacker target label.
+7. After the configured malicious phase ends, that same client resumes sending clean updates.
+8. Each client returns updated model weights.
+9. The server averages the client weights with FedAvg.
+10. The updated global model is evaluated on:
    - clean CIFAR-10 test data for Main Task Accuracy, or MTA
    - triggered non-target CIFAR-10 test images for Attack Success Rate, or ASR
 
@@ -66,10 +68,10 @@ So it is more accurate to say this project is **derived from the high-level idea
   Defines the `SimpleCNN` model used by both the server and all clients. It is a small convolutional classifier sized for CIFAR-10 and fast local experimentation.
 
 - [data.py](/home/mike/projects/federated-final/data.py)
-  Loads CIFAR-10, optionally creates a smaller deterministic debug subset, partitions the training data into 10 clients, optionally creates a simple non-IID split, and wraps client `0` with poisoned data.
+  Loads CIFAR-10, optionally creates a smaller deterministic debug subset, partitions the training data into 10 clients, optionally creates a simple non-IID split, and wraps client `0` with a dataset that can switch between poisoned and clean behavior.
 
 - [attack.py](/home/mike/projects/federated-final/attack.py)
-  Contains the backdoor logic. It adds the visible pixel trigger, defines the poisoned dataset wrapper, and provides helpers used during attack evaluation.
+  Contains the backdoor logic. It adds the visible pixel trigger, defines the poisoned dataset wrapper, and provides the switch that turns poisoning on and off after the configured number of malicious rounds.
 
 - [federated.py](/home/mike/projects/federated-final/federated.py)
   Contains the federated learning mechanics: local client training, FedAvg aggregation, clean accuracy evaluation, and attack success rate evaluation.
@@ -101,14 +103,16 @@ The shipped defaults are:
 
 - `num_clients = 10`
 - `malicious_client_id = 0`
+- `malicious_rounds = 100`
 - `target_label = 2` which is `bird`
-- `num_rounds = 20`
-- `local_epochs = 1`
+- `num_rounds = 100`
+- `local_epochs = 10`
 - `trigger_size = 4`
 - `batch_size = 64`
 - `learning_rate = 0.05`
 - `momentum = 0.9`
 - `weight_decay = 5e-4`
+- `use_cuda = false`
 - `results_dir = results`
 - `IID` client split by default
 
@@ -170,11 +174,13 @@ Command-line arguments override values from the YAML file.
 
 This uses the built-in defaults:
 
-- `20` federated rounds
-- `1` local epoch per client per round
+- `100` federated rounds
+- `10` local epochs per client per round
 - `10` clients
 - client `0` as the malicious client
+- client `0` stays malicious for all `100` default rounds
 - `target_label = 2` which is `bird`
+- CPU execution by default because `use_cuda` is `false` in `default.yaml`
 - IID client partitioning
 
 Command:
@@ -213,6 +219,15 @@ Increase or decrease the fraction of poisoned examples on the malicious client:
 python main.py --poison-fraction 0.3
 ```
 
+### Stop The Attack After A Chosen Round
+
+This example makes client `0` behave maliciously for the first `10` rounds and
+then send only clean updates:
+
+```bash
+python main.py --malicious-rounds 10
+```
+
 ### Example Custom Run
 
 This example changes several settings at once:
@@ -222,6 +237,7 @@ python main.py \
   --config default.yaml \
   --rounds 10 \
   --local-epochs 2 \
+  --malicious-rounds 5 \
   --batch-size 64 \
   --poison-fraction 0.2 \
   --target-label 2
@@ -231,16 +247,17 @@ python main.py \
 
 When the program starts, it will:
 
-1. select `cuda` if available, otherwise `cpu`
+1. choose the device from the config; by default `use_cuda` is `false`, so the shipped config runs on `cpu`
 2. download CIFAR-10 on the first run if it is not already present
 3. print the client split configuration
-4. print one line per client showing sample counts and poisoned count for client `0`
-5. train through the requested federated rounds
-6. print metrics after each round:
+4. print the malicious schedule showing how long the attack stays active
+5. print one line per client showing sample counts and the number of attack-eligible examples for client `0`
+6. train through the requested federated rounds
+7. print metrics after each round:
    - `Clean Test Accuracy / MTA`
    - `Attack Success Rate / ASR`
-7. create the configured results directory if it does not already exist
-8. save the final model and plot when training completes
+8. create the configured results directory if it does not already exist
+9. save the final model and plot when training completes
 
 If you are running for the first time, the initial CIFAR-10 download is expected.
 
@@ -265,6 +282,9 @@ If you are running for the first time, the initial CIFAR-10 download is expected
 
 - `--poison-fraction`
   Fraction of the malicious client's local dataset to poison.
+
+- `--malicious-rounds`
+  Number of opening rounds where the malicious client sends poisoned updates before reverting to clean updates. Set `0` to disable malicious updates entirely.
 
 - `--target-label`
   The attacker target class. The default is `2`, which corresponds to `bird`.

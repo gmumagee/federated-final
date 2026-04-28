@@ -12,7 +12,7 @@ from torchvision import datasets, transforms
 
 from attack import poison_dataset
 
-# Human-readable class names are useful for logs and debug output.
+# Human-readable class names are printed in startup logs and config summaries.
 CIFAR10_CLASSES = [
     "airplane",
     "automobile",
@@ -26,21 +26,24 @@ CIFAR10_CLASSES = [
     "truck",
 ]
 
-# IID remains the default unless the caller explicitly asks for label skew.
+# The experiment uses IID client partitioning unless the caller explicitly opts into
+# a simple non-IID label-skew split.
 NON_IID = False
 
-# Standard CIFAR-10 normalization values.
+# These are the standard channel statistics commonly used for CIFAR-10.
 CIFAR10_MEAN = (0.4914, 0.4822, 0.4465)
 CIFAR10_STD = (0.2470, 0.2435, 0.2616)
 
 
 @dataclass
 class ClientSummary:
-    """Short description of one client's role and sample counts."""
+    """Short description of one client's role and dataset size."""
 
     client_id: int
     num_examples: int
+    # This flag marks the client that has access to the poisonable dataset wrapper.
     is_malicious: bool
+    # This counts how many local examples are eligible to be poisoned when enabled.
     num_poisoned: int
 
 
@@ -52,7 +55,8 @@ def split_evenly(indices: list[int], num_splits: int) -> list[list[int]]:
     splits: list[list[int]] = []
     start = 0
 
-    # Hand out the remainder one item at a time so every sample is preserved.
+    # Hand out the remainder one item at a time so every sample is preserved and the
+    # client partitions stay as balanced as possible.
     for split_id in range(num_splits):
         stop = start + base_size + (1 if split_id < remainder else 0)
         splits.append(indices[start:stop])
@@ -75,7 +79,7 @@ def load_cifar10(data_dir: str | Path = "data") -> tuple[datasets.CIFAR10, datas
     )
     root = str(data_dir)
 
-    # Load the training split used for client-side learning.
+    # Load the training split that will later be divided across the federated clients.
     train_dataset = datasets.CIFAR10(
         root=root,
         train=True,
@@ -83,7 +87,7 @@ def load_cifar10(data_dir: str | Path = "data") -> tuple[datasets.CIFAR10, datas
         download=True,
     )
 
-    # Load the held-out test split used for both MTA and ASR evaluation.
+    # Load the held-out test split used for both clean-accuracy and ASR evaluation.
     test_dataset = datasets.CIFAR10(
         root=root,
         train=False,
@@ -104,7 +108,7 @@ def subset_dataset(dataset: Dataset, max_samples: int | None, seed: int) -> Data
     if max_samples < 1:
         raise ValueError("max_samples must be at least 1 when provided.")
 
-    # Shuffle once with a fixed seed so repeated debug runs use the same slice.
+    # Shuffle once with a fixed seed so repeated debug runs use the same reduced slice.
     indices = list(range(len(dataset)))
     rng = random.Random(seed)
     rng.shuffle(indices)
@@ -119,7 +123,7 @@ def get_dataset_labels(dataset: Dataset) -> list[int]:
         base_labels = get_dataset_labels(dataset.dataset)
         return [base_labels[index] for index in dataset.indices]
 
-    # Torchvision CIFAR-10 exposes labels through the targets attribute.
+    # Torchvision CIFAR-10 exposes labels through the targets attribute on the base dataset.
     targets = getattr(dataset, "targets", None)
     if targets is None:
         raise TypeError("Dataset does not expose targets for label-skew partitioning.")
@@ -133,7 +137,8 @@ def create_iid_partitions(
 ) -> list[list[int]]:
     """Create a simple IID partition by shuffling and splitting evenly."""
 
-    # Shuffle all dataset indices once and then divide them across clients.
+    # Shuffle all dataset indices once and then divide them across clients so each
+    # client receives a random but roughly equal-sized sample of the training set.
     indices = list(range(len(dataset)))
     rng = random.Random(seed)
     rng.shuffle(indices)
@@ -163,7 +168,8 @@ def create_label_skew_partitions(
         rng.shuffle(label_indices)
         ordered_indices.extend(label_indices)
 
-    # Break the ordered list into many shards, then pair two shards per client.
+    # Break the ordered list into many shards, then pair two shards per client to
+    # produce a simple label-skew pattern.
     num_shards = num_clients * 2
     shards = split_evenly(ordered_indices, num_shards)
     rng.shuffle(shards)
@@ -187,11 +193,12 @@ def create_client_datasets(
 ) -> tuple[list[Dataset], list[ClientSummary]]:
     """Build one dataset per client and poison only the malicious client."""
 
-    # Every client needs at least one sample or the local training loop breaks down.
+    # Every client needs at least one sample or the local training loop cannot run.
     if len(train_dataset) < num_clients:
         raise ValueError("Training dataset must contain at least one sample per client.")
 
-    # Choose between the default IID split and the optional label-skew split.
+    # Choose between the default IID split and the optional label-skew split before
+    # building per-client dataset objects.
     if non_iid:
         partitions = create_label_skew_partitions(train_dataset, num_clients, seed)
     else:
@@ -201,12 +208,14 @@ def create_client_datasets(
     client_datasets: list[Dataset] = []
     summaries: list[ClientSummary] = []
 
-    # Convert each partition into a Subset and poison only the chosen client.
+    # Convert each partition into a Subset and wrap only the chosen attacker client
+    # so the main loop can later enable or disable poisoning by round.
     for client_id, indices in enumerate(partitions):
         subset = Subset(train_dataset, indices)
 
         if client_id == malicious_client_id:
-            # The malicious client sees a wrapped dataset that injects triggers on demand.
+            # The malicious client sees a wrapped dataset that can emit poisoned samples
+            # while the attack phase is active and clean samples afterward.
             poisoned_subset = poison_dataset(
                 dataset=subset,
                 poison_fraction=poison_fraction,
@@ -224,7 +233,7 @@ def create_client_datasets(
                 )
             )
         else:
-            # Clean clients simply receive their local partition unchanged.
+            # Clean clients simply receive their local partition unchanged for all rounds.
             client_datasets.append(subset)
             summaries.append(
                 ClientSummary(

@@ -12,14 +12,16 @@ from torch.utils.data import DataLoader
 
 from attack import add_trigger_to_batch
 
-# A PyTorch state dict maps parameter names to tensors.
+# A PyTorch state dict maps parameter names to tensors and is the unit exchanged
+# between clients and the server in this toy FedAvg implementation.
 StateDict = OrderedDict[str, Tensor]
 
 
 def clone_state_dict(model: nn.Module) -> StateDict:
     """Copy model weights onto CPU so they can be safely averaged later."""
 
-    # Detach from autograd and clone the tensors so no client shares storage.
+    # Detach from autograd and clone onto CPU so each client update is independent
+    # and can be averaged without keeping computation graphs alive.
     return OrderedDict(
         (name, parameter.detach().cpu().clone())
         for name, parameter in model.state_dict().items()
@@ -29,18 +31,20 @@ def clone_state_dict(model: nn.Module) -> StateDict:
 def fedavg(state_dicts: list[StateDict]) -> StateDict:
     """Average client model weights with the standard FedAvg rule."""
 
-    # Build a fresh state dict that will hold the averaged global parameters.
+    # Build a fresh state dict that will hold the next global model parameters.
     averaged_state = OrderedDict()
 
     # Average each tensor across clients by matching parameter names.
     for key in state_dicts[0].keys():
         tensors = [state_dict[key] for state_dict in state_dicts]
 
-        # Floating-point tensors are learnable weights or running statistics.
+        # Floating-point tensors include learned weights and batch-norm running
+        # statistics, so these are averaged across clients.
         if tensors[0].dtype.is_floating_point:
             averaged_state[key] = torch.stack(tensors, dim=0).mean(dim=0)
         else:
-            # Non-floating tensors are copied through unchanged for simplicity.
+            # Non-floating tensors are copied through unchanged to keep the aggregation
+            # rule simple for this educational implementation.
             averaged_state[key] = tensors[0].clone()
 
     return averaged_state
@@ -57,11 +61,13 @@ def train_local_model(
 ) -> StateDict:
     """Train one client locally and return its updated weights."""
 
-    # Each client starts from the current global model at the beginning of a round.
+    # Each client starts from the current global model at the beginning of a round
+    # and trains its own private copy locally.
     local_model = copy.deepcopy(global_model).to(device)
     local_model.train()
 
-    # The local optimizer matches the simple SGD setup requested for this project.
+    # The local optimizer uses plain SGD with momentum and weight decay so the
+    # experiment remains simple but still learns at a useful speed.
     optimizer = SGD(
         local_model.parameters(),
         lr=learning_rate,
@@ -71,14 +77,14 @@ def train_local_model(
     )
     criterion = nn.CrossEntropyLoss()
 
-    # Run the requested number of local epochs over this client's dataset.
+    # Run the requested number of local epochs over this client's local dataset.
     for _ in range(local_epochs):
         for images, labels in train_loader:
             # Move the batch to the selected device before the forward pass.
             images = images.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True)
 
-            # Standard supervised optimization step for the local client model.
+            # Standard supervised optimization step on the client's current batch.
             optimizer.zero_grad()
             logits = local_model(images)
             loss = criterion(logits, labels)
@@ -102,7 +108,8 @@ def evaluate_clean_accuracy(
     correct = 0
     total = 0
 
-    # Count how many clean test examples are classified correctly.
+    # Count how many clean test examples are classified correctly by the current
+    # global model after aggregation.
     for images, labels in data_loader:
         images = images.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
@@ -130,7 +137,8 @@ def evaluate_attack_success_rate(
     successful_attacks = 0
     total_non_target = 0
 
-    # Iterate over the clean test set and build the triggered version on the fly.
+    # Iterate over the clean test set and build the triggered version on the fly
+    # so ASR is always measured against the current global model.
     for images, labels in data_loader:
         # Exclude true target-label examples so ASR reflects the backdoor effect.
         non_target_mask = labels != target_label
