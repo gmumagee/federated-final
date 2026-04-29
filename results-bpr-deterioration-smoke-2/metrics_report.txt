@@ -1,0 +1,46 @@
+Metrics Report
+==============
+
+Project: federated-final
+Run type: experiment run
+
+Command used:
+/home/mike/projects/federated-final/main.py --rounds 4 --malicious-rounds 2 --local-epochs 2 --poison-fraction 0.5 --train-subset 2000 --test-subset 500 --results-dir /home/mike/projects/federated-final/results-bpr-deterioration-smoke-2
+
+Run configuration:
+- Device: cpu
+- Client split: IID or configured CLI/YAML choice shown in runtime logs
+- Malicious client: 0
+- Malicious rounds: 2
+- Training samples used: 2000
+- Test samples used: 500
+- Poisoned samples on client 0: 100
+- Target label: 2 (bird)
+- Reference ASR at attack stop: 11.74% (round 2)
+
+Round-by-round metrics:
+
+Round 1/4
+- Clean Test Accuracy / MTA: 12.00%
+- Attack Success Rate / ASR: 15.87%
+- Backdoor Persistence Rate / BPR: N/A (reference ASR not established yet)
+
+Round 2/4
+- Clean Test Accuracy / MTA: 11.60%
+- Attack Success Rate / ASR: 11.74%
+- Backdoor Persistence Rate / BPR: N/A (reference ASR not established yet)
+
+Round 3/4
+- Clean Test Accuracy / MTA: 21.20%
+- Attack Success Rate / ASR: 1.30%
+- Backdoor Persistence Rate / BPR: 88.89% deterioration relative to round 2 ASR
+
+Round 4/4
+- Clean Test Accuracy / MTA: 26.60%
+- Attack Success Rate / ASR: 0.87%
+- Backdoor Persistence Rate / BPR: 92.59% deterioration relative to round 2 ASR
+
+Final results:
+- Final MTA: 26.60%
+- Final ASR: 0.87%
+- Final BPR: 92.59% deterioration from the reference ASR

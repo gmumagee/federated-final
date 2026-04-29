@@ -26,8 +26,8 @@ from data import (
     subset_dataset,
 )
 from federated import (
+    compute_backdoor_persistence_rate,
     evaluate_attack_success_rate,
-    evaluate_backdoor_persistence_rate,
     evaluate_clean_accuracy,
     fedavg,
     train_local_model,
@@ -208,23 +208,33 @@ def save_results_plot(
     mta_history: list[float],
     asr_history: list[float],
     bpr_history: list[float | None],
+    malicious_rounds: int,
     output_path: Path,
 ) -> None:
-    """Save one figure showing clean accuracy, ASR, and BPR over rounds."""
+    """Save one figure showing clean accuracy, ASR, and BPR deterioration over rounds."""
 
     # Round numbers are used as the shared x-axis for both metrics.
     rounds = list(range(1, len(mta_history) + 1))
     bpr_plot_values = [np.nan if value is None else value for value in bpr_history]
 
-    # Plot both curves together so the user can compare clean-task utility and
-    # backdoor strength across communication rounds. BPR is only plotted after the
-    # malicious phase ends, so earlier rounds are intentionally left blank.
+    # Plot all tracked curves together so the user can compare clean-task utility,
+    # raw attack strength, and post-attack deterioration across communication
+    # rounds. BPR is only plotted after the malicious phase ends, so earlier
+    # rounds are intentionally left blank.
     plt.figure(figsize=(8, 5))
     plt.plot(rounds, mta_history, marker="o", label="Main Task Accuracy (MTA)")
     plt.plot(rounds, asr_history, marker="s", label="Attack Success Rate (ASR)")
-    plt.plot(rounds, bpr_plot_values, marker="^", label="Backdoor Persistence Rate (BPR)")
+    plt.plot(rounds, bpr_plot_values, marker="^", label="Backdoor Persistence Rate (BPR deterioration)")
+    if 0 < malicious_rounds <= len(rounds):
+        plt.axvline(
+            malicious_rounds,
+            color="gray",
+            linestyle=":",
+            linewidth=1.2,
+            label="Malicious phase ends",
+        )
     plt.xlabel("Communication Round")
-    plt.ylabel("Accuracy (%)")
+    plt.ylabel("Metric (%)")
     plt.title("Federated Learning Backdoor Experiment")
     plt.grid(True, linestyle="--", alpha=0.5)
     plt.legend()
@@ -244,6 +254,7 @@ def save_metrics_report(
     malicious_client_id: int,
     malicious_rounds: int,
     poisoned_samples: int,
+    reference_asr: float | None,
     mta_history: list[float],
     asr_history: list[float],
     bpr_history: list[float | None],
@@ -269,6 +280,15 @@ def save_metrics_report(
         f"- Test samples used: {test_samples}",
         f"- Poisoned samples on client {malicious_client_id}: {poisoned_samples}",
         f"- Target label: {target_label_name}",
+        (
+            f"- Reference ASR at attack stop: {reference_asr:.2f}% (round {malicious_rounds})"
+            if reference_asr is not None
+            else (
+                "- Reference ASR at attack stop: N/A (no malicious phase configured)"
+                if malicious_rounds == 0
+                else "- Reference ASR at attack stop: N/A (malicious phase did not end during this run)"
+            )
+        ),
         "",
         "Round-by-round metrics:",
         "",
@@ -283,9 +303,15 @@ def save_metrics_report(
         lines.append(f"- Clean Test Accuracy / MTA: {mta:.2f}%")
         lines.append(f"- Attack Success Rate / ASR: {asr:.2f}%")
         if bpr is None:
-            lines.append("- Backdoor Persistence Rate / BPR: N/A (malicious phase still active)")
+            lines.append(
+                "- Backdoor Persistence Rate / BPR: "
+                "N/A (reference ASR not established yet)"
+            )
         else:
-            lines.append(f"- Backdoor Persistence Rate / BPR: {bpr:.2f}%")
+            lines.append(
+                f"- Backdoor Persistence Rate / BPR: {bpr:.2f}% deterioration "
+                f"relative to round {malicious_rounds} ASR"
+            )
         lines.append("")
 
     final_bpr = bpr_history[-1]
@@ -295,9 +321,9 @@ def save_metrics_report(
             f"- Final MTA: {mta_history[-1]:.2f}%",
             f"- Final ASR: {asr_history[-1]:.2f}%",
             (
-                "- Final BPR: N/A (malicious phase never ended during this run)"
+                "- Final BPR: N/A (reference ASR was never established)"
                 if final_bpr is None
-                else f"- Final BPR: {final_bpr:.2f}%"
+                else f"- Final BPR: {final_bpr:.2f}% deterioration from the reference ASR"
             ),
             "",
         ]
@@ -418,6 +444,7 @@ def main() -> None:
     mta_history: list[float] = []
     asr_history: list[float] = []
     bpr_history: list[float | None] = []
+    reference_asr: float | None = None
 
     # Each round sends the current global model to every client, collects updated
     # client weights, averages them, and evaluates the new global model.
@@ -458,17 +485,16 @@ def main() -> None:
             device=device,
             trigger_size=args.trigger_size,
         )
-        # BPR becomes meaningful only after the attacker has stopped poisoning and
-        # the model continues to receive clean updates from every client.
+        # Capture the ASR at the end of the malicious phase so later rounds can
+        # measure how much the attack weakens once only clean updates are averaged.
+        if args.malicious_rounds > 0 and round_idx == args.malicious_rounds:
+            reference_asr = asr
+
+        # BPR becomes meaningful only after the attacker has stopped poisoning. It
+        # measures the percentage drop in ASR relative to the last malicious round.
         bpr = None
-        if not malicious_phase_active:
-            bpr = evaluate_backdoor_persistence_rate(
-                global_model,
-                test_loader,
-                target_label=args.target_label,
-                device=device,
-                trigger_size=args.trigger_size,
-            )
+        if round_idx > args.malicious_rounds and reference_asr is not None:
+            bpr = compute_backdoor_persistence_rate(reference_asr, asr)
         mta_history.append(mta)
         asr_history.append(asr)
         bpr_history.append(bpr)
@@ -477,10 +503,15 @@ def main() -> None:
         print(f"\nRound {round_idx}/{args.rounds}")
         print(f"Clean Test Accuracy / MTA: {mta:.2f}%")
         print(f"Attack Success Rate / ASR: {asr:.2f}%")
+        if round_idx == args.malicious_rounds and reference_asr is not None:
+            print(f"Reference ASR at attack stop: {reference_asr:.2f}%")
         if bpr is None:
-            print("Backdoor Persistence Rate / BPR: N/A (malicious phase still active)")
+            print("Backdoor Persistence Rate / BPR: N/A (reference ASR not established yet)")
         else:
-            print(f"Backdoor Persistence Rate / BPR: {bpr:.2f}%")
+            print(
+                "Backdoor Persistence Rate / BPR: "
+                f"{bpr:.2f}% deterioration from round {args.malicious_rounds} ASR"
+            )
 
     # Save the final global model weights and the metric plot inside a dedicated results folder.
     results_dir = Path(args.results_dir)
@@ -489,7 +520,13 @@ def main() -> None:
     plot_path = results_dir / "results.png"
     report_path = results_dir / "metrics_report.txt"
     torch.save(global_model.state_dict(), model_path)
-    save_results_plot(mta_history, asr_history, bpr_history, plot_path)
+    save_results_plot(
+        mta_history,
+        asr_history,
+        bpr_history,
+        args.malicious_rounds,
+        plot_path,
+    )
     poisoned_samples = client_summaries[args.malicious_client_id].num_poisoned
     command = " ".join(sys.argv)
     save_metrics_report(
@@ -502,6 +539,7 @@ def main() -> None:
         malicious_client_id=args.malicious_client_id,
         malicious_rounds=args.malicious_rounds,
         poisoned_samples=poisoned_samples,
+        reference_asr=reference_asr,
         mta_history=mta_history,
         asr_history=asr_history,
         bpr_history=bpr_history,
@@ -511,10 +549,12 @@ def main() -> None:
     print("\nTraining complete.")
     print(f"Final MTA: {mta_history[-1]:.2f}%")
     print(f"Final ASR: {asr_history[-1]:.2f}%")
+    if reference_asr is not None:
+        print(f"Reference ASR at attack stop (round {args.malicious_rounds}): {reference_asr:.2f}%")
     if bpr_history[-1] is None:
-        print("Final BPR: N/A (malicious phase never ended during this run)")
+        print("Final BPR: N/A (reference ASR was never established)")
     else:
-        print(f"Final BPR: {bpr_history[-1]:.2f}%")
+        print(f"Final BPR: {bpr_history[-1]:.2f}% deterioration from the reference ASR")
     print(f"Saved results to: {results_dir}")
     print(f"Saved model to: {model_path}")
     print(f"Saved plot to: {plot_path}")

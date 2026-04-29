@@ -96,7 +96,7 @@ The code reports three metrics after every communication round:
   The percentage of triggered test images that are classified as the attacker target label. The implementation excludes images that already belong to the target class so ASR better reflects true backdoor behavior.
 
 - `Backdoor Persistence Rate (BPR)`
-  The same triggered-target success measurement used for ASR, but reported only after the malicious client has stopped poisoning and resumed clean local training. This shows whether the trigger behavior persists after later rounds of clean FedAvg updates.
+  A deterioration metric derived from ASR after the malicious phase ends. The code stores the ASR from the last malicious round as a reference value, then reports how much the current ASR has dropped relative to that reference during later clean-only rounds. A higher BPR means the attack has degraded more.
 
 ## Default Experiment Settings
 
@@ -134,7 +134,7 @@ Examples:
   Client `0` is malicious for rounds `1` through `10`, then clean from round `11` onward.
 
 - `malicious_rounds: 100`
-  Client `0` stays malicious for all `100` default rounds, so BPR remains `N/A` unless the run lasts longer than `100` rounds.
+  Client `0` stays malicious for all `100` default rounds, so BPR remains `N/A` because there are no post-attack clean rounds to measure deterioration against.
 
 - `malicious_rounds: 0`
   No malicious updates are sent at all.
@@ -393,10 +393,10 @@ All paths below are relative to the project root:
   Final trained global model weights saved at the end of a run.
 
 - `results/results.png`
-  Plot of MTA, ASR, and BPR across communication rounds.
+  Plot of MTA, ASR, and BPR deterioration across communication rounds.
 
 - `results/metrics_report.txt`
-  Plain-text summary of the command used, run configuration, and round-by-round MTA, ASR, and BPR values.
+  Plain-text summary of the command used, run configuration, the reference ASR at attack stop, and round-by-round MTA, ASR, and BPR values.
 
 - `.gitignore`
   Prevents dataset files, model artifacts, plots, and the virtual environment from being committed.
@@ -416,7 +416,7 @@ After a run completes, the code saves:
   This plot shows:
   - Main Task Accuracy over rounds
   - Attack Success Rate over rounds
-  - Backdoor Persistence Rate over rounds
+  - Backdoor Persistence Rate deterioration over rounds
 
 - `results/metrics_report.txt`
   Location: `/home/mike/projects/federated-final/results/metrics_report.txt`
@@ -424,6 +424,7 @@ After a run completes, the code saves:
   This text report records:
   - the command used for the run
   - the key run settings
+  - the reference ASR captured at the end of the malicious phase
   - MTA after each round
   - ASR after each round
   - BPR after each round

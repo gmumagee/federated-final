@@ -159,23 +159,14 @@ def evaluate_attack_success_rate(
     return 100.0 * successful_attacks / total_non_target
 
 
-@torch.no_grad()
-def evaluate_backdoor_persistence_rate(
-    model: nn.Module,
-    data_loader: DataLoader,
-    target_label: int,
-    device: torch.device,
-    trigger_size: int = 4,
-) -> float:
-    """Measure how much the trigger effect persists after malicious updates stop."""
+def compute_backdoor_persistence_rate(reference_asr: float, current_asr: float) -> float:
+    """Measure how much the attack success has deteriorated since poisoning stopped."""
 
-    # BPR uses the same triggered test-set construction as ASR. The difference is
-    # semantic: the main loop only reports BPR after the attacker has switched back
-    # to clean local training.
-    return evaluate_attack_success_rate(
-        model=model,
-        data_loader=data_loader,
-        target_label=target_label,
-        device=device,
-        trigger_size=trigger_size,
-    )
+    # The reference ASR is captured at the end of the malicious phase. Later rounds
+    # compare against that anchor to show how much of the attack has been washed out
+    # by continued clean federated averaging.
+    if reference_asr <= 0:
+        return 0.0
+
+    deterioration = max(0.0, reference_asr - current_asr)
+    return 100.0 * deterioration / reference_asr
