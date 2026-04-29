@@ -87,13 +87,16 @@ So it is more accurate to say this project is **derived from the high-level idea
 
 ## Metrics
 
-The code reports two metrics after every communication round:
+The code reports three metrics after every communication round:
 
 - `Main Task Accuracy (MTA)`
   Accuracy on the clean CIFAR-10 test set.
 
 - `Attack Success Rate (ASR)`
   The percentage of triggered test images that are classified as the attacker target label. The implementation excludes images that already belong to the target class so ASR better reflects true backdoor behavior.
+
+- `Backdoor Persistence Rate (BPR)`
+  The same triggered-target success measurement used for ASR, but reported only after the malicious client has stopped poisoning and resumed clean local training. This shows whether the trigger behavior persists after later rounds of clean FedAvg updates.
 
 ## Default Experiment Settings
 
@@ -103,7 +106,7 @@ The shipped defaults are:
 
 - `num_clients = 10`
 - `malicious_client_id = 0`
-- `malicious_rounds = 100`
+- `malicious_rounds = 10`
 - `target_label = 2` which is `bird`
 - `num_rounds = 100`
 - `local_epochs = 10`
@@ -127,11 +130,11 @@ The attack is no longer forced to stay active for the entire run.
 
 Examples:
 
-- `malicious_rounds: 100`
-  Client `0` stays malicious for all `100` default rounds.
-
 - `malicious_rounds: 10`
   Client `0` is malicious for rounds `1` through `10`, then clean from round `11` onward.
+
+- `malicious_rounds: 100`
+  Client `0` stays malicious for all `100` default rounds, so BPR remains `N/A` unless the run lasts longer than `100` rounds.
 
 - `malicious_rounds: 0`
   No malicious updates are sent at all.
@@ -198,7 +201,7 @@ This uses the built-in defaults:
 - `10` local epochs per client per round
 - `10` clients
 - client `0` as the malicious client
-- client `0` stays malicious for all `100` default rounds
+- client `0` is malicious for the first `10` rounds, then sends clean updates
 - `target_label = 2` which is `bird`
 - CPU execution by default because `use_cuda` is `false` in `default.yaml`
 - IID client partitioning
@@ -276,8 +279,9 @@ When the program starts, it will:
 7. print metrics after each round:
    - `Clean Test Accuracy / MTA`
    - `Attack Success Rate / ASR`
+   - `Backdoor Persistence Rate / BPR`
 8. create the configured results directory if it does not already exist
-9. save the final model and plot when training completes
+9. save the final model, plot, and text report when training completes
 
 If you are running for the first time, the initial CIFAR-10 download is expected.
 
@@ -389,7 +393,10 @@ All paths below are relative to the project root:
   Final trained global model weights saved at the end of a run.
 
 - `results/results.png`
-  Plot of MTA and ASR across communication rounds.
+  Plot of MTA, ASR, and BPR across communication rounds.
+
+- `results/metrics_report.txt`
+  Plain-text summary of the command used, run configuration, and round-by-round MTA, ASR, and BPR values.
 
 - `.gitignore`
   Prevents dataset files, model artifacts, plots, and the virtual environment from being committed.
@@ -409,6 +416,18 @@ After a run completes, the code saves:
   This plot shows:
   - Main Task Accuracy over rounds
   - Attack Success Rate over rounds
+  - Backdoor Persistence Rate over rounds
+
+- `results/metrics_report.txt`
+  Location: `/home/mike/projects/federated-final/results/metrics_report.txt`
+
+  This text report records:
+  - the command used for the run
+  - the key run settings
+  - MTA after each round
+  - ASR after each round
+  - BPR after each round
+  - final MTA, ASR, and BPR values
 
 - `results/`
   Location: `/home/mike/projects/federated-final/results/`
