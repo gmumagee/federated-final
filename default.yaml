@@ -11,7 +11,7 @@ poison_fraction: 0.2
 # Number of opening rounds where the malicious client sends poisoned updates.
 # After this round count is reached, the same client switches to clean updates.
 # This is lower than the total round count so BPR appears in the default run.
-malicious_rounds: 10
+malicious_rounds: 20
 # Threshold used when computing BPR during persistence rounds.
 bpr_threshold: 20.0
 # Target class used by the backdoor attack.
