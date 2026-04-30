@@ -1,9 +1,9 @@
 # Number of total clients in the federated simulation.
 num_clients: 10
 # Client id that is allowed to behave maliciously at the start of training.
-malicious_client_id: 0
+malicious_client_id: 1
 # Total number of communication rounds.
-rounds: 100
+rounds: 20
 # Local epochs run by each client per round.
 local_epochs: 10
 # Fraction of the malicious client's local samples that can be poisoned.
@@ -12,6 +12,8 @@ poison_fraction: 0.2
 # After this round count is reached, the same client switches to clean updates.
 # This is lower than the total round count so BPR appears in the default run.
 malicious_rounds: 10
+# Threshold used when computing BPR during persistence rounds.
+bpr_threshold: 50.0
 # Target class used by the backdoor attack.
 target_label: 2
 # Size of the square trigger drawn in the bottom-right corner.

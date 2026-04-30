@@ -96,7 +96,7 @@ The code reports three metrics after every communication round:
   The percentage of triggered test images that are classified as the attacker target label. The implementation excludes images that already belong to the target class so ASR better reflects true backdoor behavior.
 
 - `Backdoor Persistence Rate (BPR)`
-  A deterioration metric derived from ASR after the malicious phase ends. The code stores the ASR from the last malicious round as a reference value, then reports how much the current ASR has dropped relative to that reference during later clean-only rounds. A higher BPR means the attack has degraded more.
+  A threshold-based persistence metric measured after the malicious phase ends. During clean-only persistence rounds, the code records ASR each round and computes BPR as the percentage of those rounds where ASR remains greater than or equal to the configured `bpr_threshold`.
 
 ## Default Experiment Settings
 
@@ -107,6 +107,7 @@ The shipped defaults are:
 - `num_clients = 10`
 - `malicious_client_id = 0`
 - `malicious_rounds = 10`
+- `bpr_threshold = 50.0`
 - `target_label = 2` which is `bird`
 - `num_rounds = 100`
 - `local_epochs = 10`
@@ -125,8 +126,11 @@ The attack is no longer forced to stay active for the entire run.
 
 - `malicious_client_id` selects which client is allowed to poison data.
 - `malicious_rounds` controls how long that client stays malicious.
+- `bpr_threshold` controls what ASR value counts as a successful persistence round.
 - during rounds `1` through `malicious_rounds`, the attacker sends poisoned updates
 - after that, the same client trains on clean data and sends clean updates
+- BPR is then computed as:
+  persistence rounds with `ASR >= bpr_threshold` divided by total persistence rounds
 
 Examples:
 
@@ -134,7 +138,7 @@ Examples:
   Client `0` is malicious for rounds `1` through `10`, then clean from round `11` onward.
 
 - `malicious_rounds: 100`
-  Client `0` stays malicious for all `100` default rounds, so BPR remains `N/A` because there are no post-attack clean rounds to measure deterioration against.
+  Client `0` stays malicious for all `100` default rounds, so BPR remains `N/A` because there are no post-attack persistence rounds to evaluate.
 
 - `malicious_rounds: 0`
   No malicious updates are sent at all.
@@ -202,6 +206,7 @@ This uses the built-in defaults:
 - `10` clients
 - client `0` as the malicious client
 - client `0` is malicious for the first `10` rounds, then sends clean updates
+- `bpr_threshold = 50.0`
 - `target_label = 2` which is `bird`
 - CPU execution by default because `use_cuda` is `false` in `default.yaml`
 - IID client partitioning
@@ -393,10 +398,10 @@ All paths below are relative to the project root:
   Final trained global model weights saved at the end of a run.
 
 - `results/results.png`
-  Plot of MTA, ASR, and BPR deterioration across communication rounds.
+  Plot of MTA, ASR, and BPR across communication rounds.
 
 - `results/metrics_report.txt`
-  Plain-text summary of the command used, run configuration, the reference ASR at attack stop, and round-by-round MTA, ASR, and BPR values.
+  Plain-text summary of the command used, run configuration, the configured BPR threshold, and round-by-round MTA, ASR, and BPR values.
 
 - `.gitignore`
   Prevents dataset files, model artifacts, plots, and the virtual environment from being committed.
@@ -416,7 +421,7 @@ After a run completes, the code saves:
   This plot shows:
   - Main Task Accuracy over rounds
   - Attack Success Rate over rounds
-  - Backdoor Persistence Rate deterioration over rounds
+  - Backdoor Persistence Rate over rounds
 
 - `results/metrics_report.txt`
   Location: `/home/mike/projects/federated-final/results/metrics_report.txt`
@@ -424,7 +429,7 @@ After a run completes, the code saves:
   This text report records:
   - the command used for the run
   - the key run settings
-  - the reference ASR captured at the end of the malicious phase
+  - the configured BPR threshold
   - MTA after each round
   - ASR after each round
   - BPR after each round

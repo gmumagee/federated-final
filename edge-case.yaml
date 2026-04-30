@@ -1,0 +1,45 @@
+# Number of total clients in the edge-case federated simulation.
+num_clients: 10
+# Client id that behaves maliciously during the attack phase.
+malicious_client_id: 1
+
+# Source class used to select edge-case samples.
+source_label: 0
+# Target class assigned to relabeled edge-case samples.
+target_label: 9
+
+# Number of rounds where the malicious client mixes in relabeled edge-case data.
+attack_rounds: 20
+# Number of clean-only rounds used to measure persistence after poisoning stops.
+persistence_rounds: 10
+
+# Local training settings used by every client each round.
+local_epochs: 3
+batch_size: 64
+learning_rate: 0.01
+momentum: 0.9
+weight_decay: 0.0005
+
+# Approximate fraction of the malicious client's attack-phase dataset that should
+# come from relabeled edge-case examples.
+edge_fraction: 0.5
+# Number of source-class training images selected as edge-case poison candidates.
+num_edge_train: 200
+# Number of source-class test images selected for edge-case ASR evaluation.
+num_edge_test: 100
+# Strategy used to pick edge-case source-label examples.
+edge_selection_strategy: low_confidence
+
+# Threshold used when computing BPR during persistence rounds.
+bpr_threshold: 20.0
+
+# Reproducibility and IO settings.
+seed: 42
+data_dir: data
+results_dir: results
+use_cuda: false
+non_iid: false
+
+# Optional debug subset sizes. Leave null to use the full CIFAR-10 splits.
+train_subset: null
+test_subset: null

@@ -1,0 +1,46 @@
+Metrics Report
+==============
+
+Project: federated-final
+Run type: experiment run
+
+Command used:
+/home/mike/projects/federated-final/main.py --rounds 4 --malicious-rounds 2 --bpr-threshold 50 --local-epochs 1 --train-subset 1000 --test-subset 500 --results-dir /home/mike/projects/federated-final/results-base-bpr-threshold-smoke --no-use-cuda
+
+Run configuration:
+- Device: cpu
+- Client split: IID or configured CLI/YAML choice shown in runtime logs
+- Malicious client: 0
+- Malicious rounds: 2
+- Training samples used: 1000
+- Test samples used: 500
+- Poisoned samples on client 0: 20
+- Target label: 2 (bird)
+- BPR threshold: 50.00%
+
+Round-by-round metrics:
+
+Round 1/4
+- Clean Test Accuracy / MTA: 10.60%
+- Attack Success Rate / ASR: 0.00%
+- Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)
+
+Round 2/4
+- Clean Test Accuracy / MTA: 18.20%
+- Attack Success Rate / ASR: 7.83%
+- Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)
+
+Round 3/4
+- Clean Test Accuracy / MTA: 12.80%
+- Attack Success Rate / ASR: 2.17%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 50.00%
+
+Round 4/4
+- Clean Test Accuracy / MTA: 21.00%
+- Attack Success Rate / ASR: 0.00%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 50.00%
+
+Final results:
+- Final MTA: 21.00%
+- Final ASR: 0.00%
+- Final BPR: 0.00% of persistence rounds with ASR >= 50.00%
