@@ -7,7 +7,6 @@ __pycache__/
 data/
 
 # Generated training artifacts
-results/
 *.pt
 *.pth
 *.ckpt

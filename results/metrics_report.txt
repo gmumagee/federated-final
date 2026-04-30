@@ -1,0 +1,176 @@
+Metrics Report
+==============
+
+Project: federated-final
+Run type: experiment run
+
+Command used:
+main.py --config default.yaml
+
+Run configuration:
+- Device: cpu
+- Client split: IID or configured CLI/YAML choice shown in runtime logs
+- Malicious client: 1
+- Malicious rounds: 10
+- Training samples used: 50000
+- Test samples used: 10000
+- Poisoned samples on client 1: 1000
+- Target label: 2 (bird)
+- BPR threshold: 20.00%
+
+Round-by-round metrics:
+
+Round 1/30
+- Clean Test Accuracy / MTA: 10.71%
+- Attack Success Rate / ASR: 0.00%
+- Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)
+
+Round 2/30
+- Clean Test Accuracy / MTA: 56.34%
+- Attack Success Rate / ASR: 5.00%
+- Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)
+
+Round 3/30
+- Clean Test Accuracy / MTA: 64.89%
+- Attack Success Rate / ASR: 9.36%
+- Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)
+
+Round 4/30
+- Clean Test Accuracy / MTA: 69.11%
+- Attack Success Rate / ASR: 11.52%
+- Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)
+
+Round 5/30
+- Clean Test Accuracy / MTA: 70.29%
+- Attack Success Rate / ASR: 15.12%
+- Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)
+
+Round 6/30
+- Clean Test Accuracy / MTA: 72.21%
+- Attack Success Rate / ASR: 13.04%
+- Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)
+
+Round 7/30
+- Clean Test Accuracy / MTA: 72.04%
+- Attack Success Rate / ASR: 25.42%
+- Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)
+
+Round 8/30
+- Clean Test Accuracy / MTA: 75.13%
+- Attack Success Rate / ASR: 27.44%
+- Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)
+
+Round 9/30
+- Clean Test Accuracy / MTA: 75.17%
+- Attack Success Rate / ASR: 18.32%
+- Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)
+
+Round 10/30
+- Clean Test Accuracy / MTA: 76.11%
+- Attack Success Rate / ASR: 25.17%
+- Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)
+
+Round 11/30
+- Clean Test Accuracy / MTA: 76.12%
+- Attack Success Rate / ASR: 17.50%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 12/30
+- Clean Test Accuracy / MTA: 76.44%
+- Attack Success Rate / ASR: 11.77%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 13/30
+- Clean Test Accuracy / MTA: 76.98%
+- Attack Success Rate / ASR: 8.81%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 14/30
+- Clean Test Accuracy / MTA: 77.24%
+- Attack Success Rate / ASR: 4.36%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 15/30
+- Clean Test Accuracy / MTA: 76.73%
+- Attack Success Rate / ASR: 4.56%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 16/30
+- Clean Test Accuracy / MTA: 77.87%
+- Attack Success Rate / ASR: 5.42%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 17/30
+- Clean Test Accuracy / MTA: 77.38%
+- Attack Success Rate / ASR: 4.51%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 18/30
+- Clean Test Accuracy / MTA: 77.88%
+- Attack Success Rate / ASR: 4.13%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 19/30
+- Clean Test Accuracy / MTA: 77.65%
+- Attack Success Rate / ASR: 6.27%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 20/30
+- Clean Test Accuracy / MTA: 77.42%
+- Attack Success Rate / ASR: 2.73%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 21/30
+- Clean Test Accuracy / MTA: 77.53%
+- Attack Success Rate / ASR: 4.77%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 22/30
+- Clean Test Accuracy / MTA: 77.98%
+- Attack Success Rate / ASR: 3.32%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 23/30
+- Clean Test Accuracy / MTA: 77.39%
+- Attack Success Rate / ASR: 2.67%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 24/30
+- Clean Test Accuracy / MTA: 77.84%
+- Attack Success Rate / ASR: 3.58%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 25/30
+- Clean Test Accuracy / MTA: 78.07%
+- Attack Success Rate / ASR: 2.46%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 26/30
+- Clean Test Accuracy / MTA: 78.06%
+- Attack Success Rate / ASR: 3.06%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 27/30
+- Clean Test Accuracy / MTA: 78.16%
+- Attack Success Rate / ASR: 2.99%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 28/30
+- Clean Test Accuracy / MTA: 78.08%
+- Attack Success Rate / ASR: 2.40%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 29/30
+- Clean Test Accuracy / MTA: 77.97%
+- Attack Success Rate / ASR: 2.66%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Round 30/30
+- Clean Test Accuracy / MTA: 78.68%
+- Attack Success Rate / ASR: 2.82%
+- Backdoor Persistence Rate / BPR: 0.00% of persistence rounds with ASR >= 20.00%
+
+Final results:
+- Final MTA: 78.68%
+- Final ASR: 2.82%
+- Final BPR: 0.00% of persistence rounds with ASR >= 20.00%
