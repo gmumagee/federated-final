@@ -1,0 +1,5 @@
+round,phase,mta,edge_asr,bpr,bpr_threshold
+1,attack,10.20,15.00,,20.00
+2,attack,13.40,15.00,,20.00
+3,persistence,19.80,10.00,0.00,20.00
+4,persistence,20.00,35.00,50.00,20.00

@@ -431,6 +431,7 @@ def main() -> None:
     global_model = SimpleCNN().to(device)
     mta_values: list[float] = []
     edge_asr_values: list[float] = []
+    bpr_values: list[float | None] = []
     persistence_asr_values: list[float] = []
     metrics_rows: list[dict[str, object]] = []
 
@@ -467,8 +468,14 @@ def main() -> None:
         edge_asr = evaluate_edge_asr(global_model, edge_test_loader, device=device)
         mta_values.append(mta)
         edge_asr_values.append(edge_asr)
+        bpr = None
         if phase == "persistence":
             persistence_asr_values.append(edge_asr)
+            bpr = compute_bpr(
+                persistence_asr_values,
+                threshold=args.bpr_threshold,
+            )
+        bpr_values.append(bpr)
 
         # Record one CSV row per round so the saved metrics file can be graphed or
         # post-processed later without parsing console text.
@@ -478,6 +485,7 @@ def main() -> None:
                 "phase": phase,
                 "mta": f"{mta:.2f}",
                 "edge_asr": f"{edge_asr:.2f}",
+                "bpr": "" if bpr is None else f"{bpr:.2f}",
                 "bpr_threshold": f"{args.bpr_threshold:.2f}",
             }
         )
@@ -488,6 +496,13 @@ def main() -> None:
         print(f"Phase: {phase}")
         print(f"MTA: {mta:.2f}%")
         print(f"Edge ASR: {edge_asr:.2f}%")
+        if bpr is None:
+            print("Backdoor Persistence Rate / BPR: N/A (persistence phase has not started)")
+        else:
+            print(
+                "Backdoor Persistence Rate / BPR: "
+                f"{bpr:.2f}% of persistence rounds with ASR >= {args.bpr_threshold:.2f}%"
+            )
 
     # After the persistence phase ends, compress the raw persistence ASR values
     # into the threshold-based BPR summary requested for this project.
@@ -507,6 +522,7 @@ def main() -> None:
         rounds=list(range(1, total_rounds + 1)),
         mta_values=mta_values,
         asr_values=edge_asr_values,
+        bpr_values=bpr_values,
         attack_rounds=args.attack_rounds,
         persistence_start_round=args.attack_rounds + 1,
         title="Edge-Case Backdoor Persistence",
@@ -514,7 +530,7 @@ def main() -> None:
     save_metrics_csv(
         path=csv_path,
         rows=metrics_rows,
-        fieldnames=["round", "phase", "mta", "edge_asr", "bpr_threshold"],
+        fieldnames=["round", "phase", "mta", "edge_asr", "bpr", "bpr_threshold"],
     )
 
     # Print the final summary after all artifacts are written so the user can see

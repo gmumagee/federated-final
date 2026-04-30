@@ -53,6 +53,7 @@ def plot_attack_metrics(
     rounds: list[int],
     mta_values: list[float],
     asr_values: list[float],
+    bpr_values: list[float | None] | None = None,
     attack_rounds: int | None = None,
     persistence_start_round: int | None = None,
     title: str | None = None,
@@ -68,6 +69,16 @@ def plot_attack_metrics(
     plt.figure(figsize=(8, 5))
     plt.plot(rounds, mta_values, marker="o", label="Main Task Accuracy (MTA)")
     plt.plot(rounds, asr_values, marker="s", label="Attack Success Rate (ASR)")
+    if bpr_values is not None:
+        # BPR is undefined before persistence begins, so earlier rounds are left
+        # blank in the plotted curve by converting None values into NaNs.
+        bpr_plot_values = [float("nan") if value is None else value for value in bpr_values]
+        plt.plot(
+            rounds,
+            bpr_plot_values,
+            marker="^",
+            label="Backdoor Persistence Rate (BPR)",
+        )
 
     # Mark the start of the persistence phase so the user can see when poisoning stopped.
     marker_round = persistence_start_round
