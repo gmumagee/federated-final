@@ -10,7 +10,6 @@ data/
 *.pt
 *.pth
 *.ckpt
-results.png
 
 # Common local caches
 .pytest_cache/
